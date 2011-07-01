@@ -1,0 +1,87 @@
+#!/bin/bash 
+
+if [ -z "$1" ]; then
+	echo "Usage: $0 <project_folder> [language_ID]"
+	exit 
+fi
+
+cd $1
+PROJECT_FOLDER=$(pwd)
+
+. $PROJECT_FOLDER/scripts/conll2009/globals "$PROJECT_FOLDER"
+. $SCRIPT_FOLDER_2009/utils
+
+FROM_ID=0;
+TO_ID=${#TRAIN_FILES[@]}
+
+if [ -n "$2" ]; then
+	LANGUAGE_ID=$2
+	FROM_ID=$2
+	TO_ID=$2
+	let FROM_ID=FROM_ID-1
+fi
+
+COUNTER=$FROM_ID
+while [ $COUNTER -lt  $TO_ID ]; do
+
+	test-f ${TEST_FILES[$COUNTER]}  
+
+	PARSE_LOG=${DATA_FOLDER}/parselog${LANGUAGE_NAMES[$COUNTER]}-${BEAM_PARAM[$COUNTER]}.txt
+	echo "Starting parsing: $(date)"
+	echo "Starting parsing: $(date)">$PARSE_LOG 2>&1
+	echo "$BIN_FOLDER/idp -parse ${LANGUAGE_FOLDERS[$COUNTER]}/parser.par TEST_FILE=${TEST_FILES[$COUNTER]}$TEX_EXT OUT_FILE=${TEST_FILES[$COUNTER]}$OUT1_EXT ${BEAM_PARAM[$COUNTER]}>> $PARSE_LOG 2>&1"
+	$BIN_FOLDER/idp -parse ${LANGUAGE_FOLDERS[$COUNTER]}/parser.par TEST_FILE=${TEST_FILES[$COUNTER]}$TEX_EXT OUT_FILE=${TEST_FILES[$COUNTER]}$OUT1_EXT ${BEAM_PARAM[$COUNTER]}>> $PARSE_LOG 2>&1
+	echo "Parsing finished: $(date)"
+	echo "Parsing finished: $(date)">> $PARSE_LOG 2>&1
+
+	test-f $SCRIPT_FOLDER/ext2conll_2009
+	test-s ${TEST_FILES[$COUNTER]}$OUT1_EXT
+
+	x "$SCRIPT_FOLDER/ext2conll_2009 ${LANGUAGE_FOLDERS[$COUNTER]} ${TEST_FILES[$COUNTER]} ${TEST_FILES[$COUNTER]}$OUT1_EXT ${TEST_FILES[$COUNTER]}$OUT2_EXT"
+
+
+OUT_FILE_NAME=${TEST_FILES[$COUNTER]}$OUT3_EXT
+GOLD_FILE=${TEST_FILES[$COUNTER]}
+PRED_FILE=${TEST_FILES[$COUNTER]}$OUT2_EXT
+TMP="${OUT_FILE_NAME}TMP"
+TMP2="${OUT_FILE_NAME}TMP2"
+TMP3="${OUT_FILE_NAME}TMP3"
+TMP4="${OUT_FILE_NAME}TMP4"
+TMP5="${OUT_FILE_NAME}TMP5"
+TMP6="${OUT_FILE_NAME}TMP6"
+
+#echo "cut -f1,2,3,4,5,6,7,8 $GOLD_FILE >$TMP #gold columns"
+cut -f1,2,3,4,5,6,7,8 $GOLD_FILE >$TMP #gold columns
+
+#echo "cut -f7 $PRED_FILE >$TMP2 #pred HEAD columns"
+cut -f7 $PRED_FILE >$TMP2 #pred HEAD columns
+
+#echo "cut -f8 $PRED_FILE >$TMP3 #pred DEPREL columns"
+cut -f8 $PRED_FILE >$TMP3 #pred DEPREL columns
+
+#echo "cut -f13 $GOLD_FILE >$TMP4 #gold FILLPRED"
+cut -f13 $GOLD_FILE >$TMP4 #gold FILLPRED
+
+#echo "cut -f9- $PRED_FILE >$TMP5 #pred PRED and APRED"
+cut -f9- $PRED_FILE >$TMP5 #pred PRED and APRED
+
+#echo "paste $TMP $TMP2 $TMP2 $TMP3 $TMP3 $TMP4 $TMP5 >$TMP6"
+paste $TMP $TMP2 $TMP2 $TMP3 $TMP3 $TMP4 $TMP5 >$TMP6
+
+x "cd $SCRIPT_FOLDER_2009"
+let LANGUGE_ID=COUNTER+1
+x "java PrepareOutputC09 $LANGUGE_ID $TMP6 $OUT_FILE_NAME ${LEXICON_FILE[$COUNTER]}"
+x "cd $PROJECT_FOLDER"
+
+rm $TMP
+rm $TMP2
+rm $TMP3
+rm $TMP4
+rm $TMP5
+rm $TMP6
+
+echo "$SCRIPT_FOLDER_2009/eval09.pl -g ${TEST_FILES[$COUNTER]} -s $OUT_FILE_NAME > ${DATA_FOLDER}/evallog${LANGUAGE_NAMES[$COUNTER]}-${BEAM_PARAM[$COUNTER]}.txt 2>&1"
+$SCRIPT_FOLDER_2009/eval09.pl -g ${TEST_FILES[$COUNTER]} -s $OUT_FILE_NAME > ${DATA_FOLDER}/evallog${LANGUAGE_NAMES[$COUNTER]}-${BEAM_PARAM[$COUNTER]}.txt 2>&1
+
+    let COUNTER=COUNTER+1 
+done

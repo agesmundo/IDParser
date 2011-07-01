@@ -1,0 +1,30 @@
+#!/bin/bash
+
+if [ -z "$1" ]; then
+    echo
+    echo "Usage: ./addFillPredColumn  [corpus_files]*"
+    exit 1
+fi
+
+for FILE in "$@"
+do
+	echo "Adding FillPredColumn to ${FILE}"
+	IN_FILE_NAME=$(echo $FILE | sed -e 's/\.tf\.ext$//g')
+	TMP="${FILE}TMP"
+	TMP2="${FILE}TMP2"
+	TMP3="${FILE}TMP3"
+
+
+	cut -f1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19 $FILE >$TMP
+
+	cut -f13 $IN_FILE_NAME >$TMP2
+
+	cut -f20- $FILE>$TMP3 
+
+	paste $TMP $TMP2 $TMP3| sed 's/[\t][\t]$//g'>$FILE
+
+	rm $TMP
+	rm $TMP2
+	rm $TMP3
+done
+

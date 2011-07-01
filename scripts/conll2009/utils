@@ -1,0 +1,22 @@
+test-f() {
+        if [ ! -f "$1" ]
+        then
+                echo "Error: File missing: $1"
+                echo "$2"
+                exit
+        fi
+}
+test-s() {
+	test-f $1
+        if [ ! -s "$1" ]
+        then
+                echo "Error: File is empty: $1"
+                echo "$2"
+                exit
+        fi
+}
+
+x(){
+	echo "$1"
+	$1
+}

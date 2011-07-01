@@ -1,0 +1,66 @@
+#!/bin/bash 
+
+if [ -z "$1" ]; then
+	echo "Usage: ./run_all <project_folder> [language_ID]"
+	exit 
+fi
+
+cd $1
+PROJECT_FOLDER=$(pwd)
+
+. $PROJECT_FOLDER/scripts/conll2009/globals "$PROJECT_FOLDER"
+. $SCRIPT_FOLDER_2009/utils
+
+FROM_ID=0;
+TO_ID=${#TRAIN_FILES[@]}
+
+if [ -n "$2" ]; then
+	LANGUAGE_ID=$2
+	FROM_ID=$2
+	TO_ID=$2
+	let FROM_ID=FROM_ID-1
+fi
+
+COUNTER=$FROM_ID
+while [ $COUNTER -lt  $TO_ID ]; do
+
+	echo "cd ${LANGUAGE_FOLDERS[$COUNTER]}"
+	cd ${LANGUAGE_FOLDERS[$COUNTER]}
+	echo "rm *"
+	rm *	
+	
+	echo "ls ${BKP_FOLDERS[$COUNTER]}/*"
+	ls ${BKP_FOLDERS[$COUNTER]}/*
+	
+	echo "cp ${BKP_FOLDERS[$COUNTER]}/* ${LANGUAGE_FOLDERS[$COUNTER]}"
+	cp ${BKP_FOLDERS[$COUNTER]}/* ${LANGUAGE_FOLDERS[$COUNTER]}
+	
+	echo "$SCRIPT_FOLDER_2009/prepare_all $PROJECT_FOLDER $LANGUAGE_ID"
+	$SCRIPT_FOLDER_2009/prepare_all $PROJECT_FOLDER $LANGUAGE_ID
+	
+	echo "cp ${LANGUAGE_FOLDERS[$COUNTER]}/idp_io_spec.h $SRC_FOLDER"
+	cp ${LANGUAGE_FOLDERS[$COUNTER]}/idp_io_spec.h $SRC_FOLDER
+	
+	echo "cd $SRC_FOLDER"
+	cd $SRC_FOLDER
+	
+	echo make
+	make
+	
+	echo "cd $PROJECT_FOLDER"
+	cd $PROJECT_FOLDER
+	
+	TRAIN_LOG=${DATA_FOLDER}/trainlog${LANGUAGE_NAMES[$COUNTER]}.txt 
+	echo "Starting training: $(date)"
+	echo "Starting training: $(date)">> $TRAIN_LOG 2>&1
+	echo "$BIN_FOLDER/idp -train ${LANGUAGE_FOLDERS[$COUNTER]}/parser.par >>$TRAIN_LOG 2>&1"
+	$BIN_FOLDER/idp -train ${LANGUAGE_FOLDERS[$COUNTER]}/parser.par >>$TRAIN_LOG 2>&1
+	echo "Training finished: $(date)"
+	echo "Training fihished: $(date)">> $TRAIN_LOG 2>&1
+	
+        let COUNTER=COUNTER+1 
+
+	echo "$SCRIPT_FOLDER_2009/parse_all $PROJECT_FOLDER $COUNTER"
+	$SCRIPT_FOLDER_2009/parse_all $PROJECT_FOLDER $COUNTER
+
+done

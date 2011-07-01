@@ -1,0 +1,50 @@
+if [ -z "$3" ]; then
+	echo "Usage: ./freq_distribution <in_file> <column> <out_file> [title]"
+	exit 
+fi
+IN_FILE=$1
+COLUMN=$2
+OUT_FILE_PATH=$3
+OUT_FOLDER=$(echo $OUT_FILE_PATH|grep -o ".*/")
+OUT_FILE=$(echo $OUT_FILE_PATH|grep -o "[^/]*$")
+TITLE=$4
+
+cut -f$COLUMN $IN_FILE | sort | uniq -c | sort | grep " [0-9]\{1,\} " -o |sort -n |uniq -c | head -n20>${OUT_FILE}.dat
+
+echo -e "set term postscript eps 
+set output \"${OUT_FILE}.eps\" 
+set xlabel \"Frequence\" 
+set ylabel \"Occurrences\" 
+set title \"${TITLE}\"
+plot \"${OUT_FILE}.dat\" using 2:1 title \"\" with lines 1" >${OUT_FILE}.gsc
+
+gnuplot ${OUT_FILE}.gsc
+
+echo "\documentclass{article}
+\usepackage[latin1]{inputenc}
+\usepackage{graphicx}
+\begin{document}
+
+\begin{figure}[htp]
+\includegraphics{${OUT_FILE}.eps}
+\end{figure}
+\begin{verbatim}" >${OUT_FILE}.tex
+
+head -n10 ${OUT_FILE}.dat>>${OUT_FILE}.tex
+echo -n "Number of predicates: ">>${OUT_FILE}.tex
+cut -f$COLUMN $IN_FILE| sort |grep "[^_]" -c>>${OUT_FILE}.tex
+echo -n "Number of predicate classes: ">>${OUT_FILE}.tex
+cut -f$COLUMN $IN_FILE | sort |uniq|grep "^.*$" -c >>${OUT_FILE}.tex
+echo -n "Number of lemmas: ">>${OUT_FILE}.tex
+cut -f3 $IN_FILE | sort |uniq|grep "^.*$" -c >>${OUT_FILE}.tex
+echo -n "Number of sentences: ">>${OUT_FILE}.tex
+cat $IN_FILE | grep "^1[^0-9]" -c >>${OUT_FILE}.tex
+echo "\end{verbatim}
+\end{document}" >>${OUT_FILE}.tex
+
+latex ${OUT_FILE}.tex
+latex ${OUT_FILE}.tex
+dvips ${OUT_FILE}.dvi
+ps2pdf ${OUT_FILE}.ps
+rm  ${OUT_FILE}.dvi ${OUT_FILE}.ps #${OUT_FILE}.tex
+kpdf ${OUT_FILE}.pdf

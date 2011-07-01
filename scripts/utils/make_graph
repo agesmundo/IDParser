@@ -1,0 +1,39 @@
+#!/bin/bash 
+
+if [ -z "$3" ]; then
+echo "Usage: ./$0 <project_folder> <log_file> <out_file> [comparison_files]"
+exit 
+fi
+
+	START_FOLDER=$(pwd)
+	cd $1
+	PROJECT_FOLDER=$(pwd)
+	cd $START_FOLDER
+	OUT_FILE=$3
+	LOG_FILE=$2
+	OUT_FILE_NAME=$(echo ${OUT_FILE}|grep "[^/]\+$" -o)
+	OUT_FILE_FOLDER=$(echo ${OUT_FILE}|grep "^.*/" -o)
+echo "xxx: $OUT_FILE_FOLDER"
+
+	SCRIPT_FOLDER=$PROJECT_FOLDER/scripts
+	SCRIPT_FOLDER_2009=$SCRIPT_FOLDER/conll2009
+
+	echo "cd ${SCRIPT_FOLDER_2009}"
+	cd ${SCRIPT_FOLDER_2009}
+
+	echo "java MakeGraph $LOG_FILE ${OUT_FILE}"
+	java MakeGraph $LOG_FILE ${OUT_FILE} $4 $5 $6 $7 $8 $9
+
+	echo "cd $START_FOLDER"
+	cd $START_FOLDER
+
+	echo "gnuplot ${OUT_FILE}_script"
+	gnuplot ${OUT_FILE}_script
+
+	cd $OUT_FILE_FOLDER
+	latex ${OUT_FILE_NAME}.tex
+	dvips ${OUT_FILE_NAME}.dvi
+	ps2pdf ${OUT_FILE_NAME}.ps
+	rm  ${OUT_FILE_NAME}.dvi ${OUT_FILE_NAME}.ps ${OUT_FILE_NAME}.aux ${OUT_FILE_NAME}.log #${OUT_FILE_NAME}.tex
+	kpdf ${OUT_FILE_NAME}.pdf
+

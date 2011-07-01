@@ -1,0 +1,113 @@
+#!/bin/bash
+
+if [ -z "$5" ]; then
+    echo
+    echo "Data Preprocessing Script for idp"
+    echo "Usage: ./prepare_data  SYN_ROOT_LABEL FREQ_CUTOFF UNKN_FREQ_CUTOFF  PROJECT_PATH  TRAINING_FILE VALIDATION_FILE [other_files]*"
+	echo "Parameters:"
+	echo "  - SYN_ROOT_LABEL"
+	echo "    the syntactic root label"
+	echo "  - FREQ_CUTOFF"
+	echo "    any feature (both atomic and composed), word form or word lemma which is"
+    echo "    encountered less than FREQ_CUTOFF is treated as a special 'UNKNOWN' item."
+	echo "  - UNKN_FREQ_CUTOFF"
+	echo "    if frequency of an 'UNKNOWN' item in the training set is less than"
+	echo "    UNKN_FREQ_CUTOFF then it is merged with less frequent item of the same"
+	echo "    category. UNKN_FREQ_CUTOFF should be less or equal to FREQ_CUTOFF."
+	echo "  - PROJECT_PATH"
+	echo "    output files are created here. The directory should already exist."
+	echo "  - TRAINING_FILE "
+    echo "    training file in CoNLL format,  vocabulary/set of features/pos tags/etc are induced from it."
+    echo "  - VALIDATION_FILE "
+    echo "    validation file in CoNLL format. "
+    echo "  - other_files "
+    echo "    other files (if any) to be converted in CoNLL.EXT format."
+    echo 
+    exit 1
+fi
+
+SYN_ROOT_LABEL=$1
+FREQ_CUTOFF=$2
+UNKN_FREQ_CUTOFF=$3
+PROJECT_PATH=$4
+SCRIPT_BASE_PATH=${0%/*}
+
+TRAIN_FILE_IDX=5
+TRAIN_FILE=$5
+
+INDEX=1
+OUT_FILE_COUNT=1
+for FILE in "$@"
+do
+if [ $INDEX -ge $TRAIN_FILE_IDX ] 
+then
+    SIMPLE_NAME=${FILE##*/}
+    #   produce UTF-8 version
+    echo "Encoding $FILE  in ASCII..."
+    cat $FILE | $SCRIPT_BASE_PATH/utf2num > $PROJECT_PATH/$SIMPLE_NAME.asc
+
+    #  projectivize if not blind data (contains a field with head)
+    #  NOTE: first line of the file should not be empty
+    HEAD_FIELD=`head -n 1 $PROJECT_PATH/$SIMPLE_NAME.asc | awk '{print  $8}'`
+    if [ ! $HEAD_FIELD == "" ] 
+    then
+        echo "Removing SRL annotation from $FILE..."
+        cat $PROJECT_PATH/$SIMPLE_NAME.asc | awk '{if ($0 != "") printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t_\t_\n", $1, $2, $3, $4, $5, $6, $8, $9; else print ""}' > $PROJECT_PATH/$SIMPLE_NAME.c7.asc         
+        
+        echo "Projectivizing $FILE ..."
+        java -Xmx1536m -jar $SCRIPT_BASE_PATH/pseudoproj/nonProj2Proj.jar $PROJECT_PATH/$SIMPLE_NAME.c7.asc 1 conll UTF-8
+        mv projectivized.conll $PROJECT_PATH/$SIMPLE_NAME.c7.asc_prj 
+        if [ $INDEX -eq $TRAIN_FILE_IDX ] 
+        then
+            mv projectivized.dep $PROJECT_PATH/deps.proj
+            cat $PROJECT_PATH/deps.proj | grep -v "|" > $PROJECT_PATH/deps.nonproj
+        else
+            rm -Rf projectivized.dep
+        fi
+
+        echo "Restoring SRL annotation from $FILE..."
+
+        paste $PROJECT_PATH/$SIMPLE_NAME.c7.asc_prj  $PROJECT_PATH/$SIMPLE_NAME.asc |  awk '{if ($0 ~ "^[[:space:]]$") printf "\n"; else printf "%s\n", $0 }' \
+                | awk '{ if ($0 != "") printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s", $11, $12, $13, $14, $15, $16, $17, $7, $8, $20; for(i=21;i<=NF;i++) printf "\t%s", $i;  printf "\n";} '\
+                >  $PROJECT_PATH/$SIMPLE_NAME.asc_prj
+
+        rm -Rf $PROJECT_PATH/$SIMPLE_NAME.c7.asc $PROJECT_PATH/$SIMPLE_NAME.asc  $PROJECT_PATH/$SIMPLE_NAME.c7.asc_prj
+
+
+        PREPROCESSOR_STR="$PREPROCESSOR_STR $PROJECT_PATH/$SIMPLE_NAME.asc_prj $PROJECT_PATH/$SIMPLE_NAME.ext"
+	OUT_FILE[$OUT_FILE_COUNT]="$PROJECT_PATH/$SIMPLE_NAME.ext";
+	let "OUT_FILE_COUNT+=1"
+    else
+        if [ $INDEX -eq $TRAIN_FILE_IDX ] 
+        then
+            echo "Error: training file ($FILE) must contain HEAD and DEPREL fields, exiting."
+            exit 2
+        fi
+        PREPROCESSOR_STR="$PREPROCESSOR_STR $PROJECT_PATH/$SIMPLE_NAME.asc $PROJECT_PATH/$SIMPLE_NAME.ext"
+    fi
+fi
+let "INDEX+=1"
+done   # through arguments 
+
+echo "Creating coarse-grained part-of-speech tagset (c_tagset) and fine-grained part-of-speech tagset (tagset)..."
+SIMPLE_NAME=${TRAIN_FILE##*/}
+cat $PROJECT_PATH/$SIMPLE_NAME.asc_prj | awk '{if ($0 != "") printf "%s\n", $5}'  | sort -u > $PROJECT_PATH/c_tagset
+cat $PROJECT_PATH/$SIMPLE_NAME.asc_prj | awk '{if ($0 != "") printf "%s\n", $4}'  | sort -u > $PROJECT_PATH/tagset
+
+echo "Converting files and preparing parser input-output specification..."
+echo "java -jar $SCRIPT_BASE_PATH/preprocessor/idp_preprocessor.jar  -root_label $SYN_ROOT_LABEL -word_in $FREQ_CUTOFF $UNKN_FREQ_CUTOFF -word_out $FREQ_CUTOFF $UNKN_FREQ_CUTOFF -feat_in $FREQ_CUTOFF $UNKN_FREQ_CUTOFF -feat_out $FREQ_CUTOFF $UNKN_FREQ_CUTOFF  -lemma $FREQ_CUTOFF $UNKN_FREQ_CUTOFF $PROJECT_PATH/io_spec $PROJECT_PATH/idp_io_spec.h $PREPROCESSOR_STR "
+java -jar $SCRIPT_BASE_PATH/preprocessor/idp_preprocessor.jar  -root_label $SYN_ROOT_LABEL -word_in $FREQ_CUTOFF $UNKN_FREQ_CUTOFF \
+    -word_out $FREQ_CUTOFF $UNKN_FREQ_CUTOFF -feat_in $FREQ_CUTOFF $UNKN_FREQ_CUTOFF -feat_out $FREQ_CUTOFF $UNKN_FREQ_CUTOFF \
+    -lemma $FREQ_CUTOFF $UNKN_FREQ_CUTOFF $PROJECT_PATH/io_spec $PROJECT_PATH/idp_io_spec.h $PREPROCESSOR_STR 
+
+if [ ! $? -eq 0 ] 
+then
+    echo "DATA PREPARATION FAILED"    
+    exit 2
+fi
+
+echo "Saving preprocessing parameters..."
+echo "$FREQ_CUTOFF $UNKN_FREQ_CUTOFF" > $PROJECT_PATH/preproc.cfg
+echo "# FREQ_CUTOFF UNKN_FREQ_CUTOFF" >> $PROJECT_PATH/preproc.cfg
+echo "Done."
+

@@ -1,0 +1,61 @@
+compile:
+
+IDParser$ ./scripts/wlp/compile data/sample/sampleTrain data/sample/sampleDev data/sample/sampleTest 
+			(Usage: ./compile <train_file> <development_file> [test_file])
+
+train:
+
+IDParser$ ./scripts/wlp/train data/sample/parser.par
+                    	(Usage: ./train <parser_file>)
+parsing:
+IDParser$ ./scripts/wlp/parse data/sample/parser.par data/sample/sampleDev.tf.ext data/sample/out
+
+			(Usage: ./parse <par_file> <test_file> <out_file>)
+
+folder structure:
+bin:     here are placed the compiled exec
+data:        corpus files
+data/sample: a sample of english corpus with train development and test(untagged) files in WLP file format
+data/config-default: contains default configuration files for the parser and a instruction files
+data/<other_folders>: folders structure for reproducing conll-09 experiments (see below)
+src:     source files
+scripts: conversion and program launching scripts
+scripts/wlp: contains scripts for the WLP format
+
+
+WLP files format:
+the format used is the standard column format with this info:
+1st column: sentence line number
+2nd column: word
+3rd column: lemma
+4th column: POS tag
+5th column: HEAD
+6th column: DEPREL
+7th column: PRED
+8+  columns: ARGS
+
+HOWTO reproduce conll'09 experiments:
+the conll09 corpora are not provided in this package for copiright issues
+these instructions are for english, for any of the other language the procedure is equivalent:
+1)set in the file src/idp.h line 176 
+the variable USE_FILLPRED  to 1
+#define USE_FILLPRED 1
+2)paste the english train dev e test set in conll09 format in the files 
+data/bkp/En09/CoNLL2009-ST-English-train
+data/bkp/En09/CoNLL2009-ST-English-development
+data/bkp/En09/CoNLL2009-ST-English-test
+3) cd to IDParser folder and launch training with 
+./script/conll09/train_all 4
+    (Usage: ./train_all <language_code>)
+where the language codes are 
+1 Catalan
+2 Chinese
+3 Czeck
+4 English
+5 German
+6 Japanese
+7 Spanish
+4) finished the training launch the parsing with
+./script/conll09/parse_all 4
+      (./parse_all <language_ID>)
+5) the result will be saved in data/En09 with the extension .pars3

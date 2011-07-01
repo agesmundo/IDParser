@@ -1,0 +1,100 @@
+#!/bin/bash
+
+if [ -z "$3" ]; then
+    echo
+    echo "Script for converting mCoNLL-08.EXT parser output to mCoNLL format "
+    echo "Usage: ./ext2conll_2008 deps.nonproj_file parser_res.conll.ext  parser_res.conll"
+    echo "-  deps.nonproj file"
+    echo "   file that lists dependency labels one per line, produced by projectivization"
+    echo "-  parser_res.conll.ext"
+    echo "   Parser output on this file in CoNLL.ext format"
+    echo "-  parser_res.conll"
+    echo "   Parser output converted to CoNLL format and deprojectivized will be produced by the script"
+    echo "   Additionally parser_res.conll.proj will contain the parser output in CoNLL format"
+    echo "   but without the projectivization"
+    exit 1
+fi
+
+DEPS_FILE=$1
+
+PARSER_RES_FILE=$2
+PARSER_RES_FILE_SIMPLE=${PARSER_RES_FILE##*/}
+
+PARSER_CONLL=$3
+PARSER_CONLL_SIMPLE=${PARSER_CONLL_SIMPLE##*/}
+SCRIPT_BASE_PATH=${0%/*}
+
+#produce blind file of TEST_IN_FILE from ext
+
+#11	deficit	306	306	3994	deficit	2636	NN	4	NN	4	_	0	0	0	0		6	PRD	19	deficit.01~A2	0	8	AM-TMP	0	10	A1	1
+
+cut -f1 $PARSER_RES_FILE > $$.TMP1
+cut -f2 $PARSER_RES_FILE > $$.TMP2
+cut -f6 $PARSER_RES_FILE > $$.TMP3
+cut -f8 $PARSER_RES_FILE > $$.TMP4
+cut -f10 $PARSER_RES_FILE > $$.TMP5
+cut -f12 $PARSER_RES_FILE > $$.TMP6
+
+paste $$.TMP1 $$.TMP2 $$.TMP3 $$.TMP4 $$.TMP5 $$.TMP6  > $$.TEST_IN_FILE_SIMPLE.blind
+
+rm $$.TMP1 $$.TMP2 $$.TMP3 $$.TMP4 $$.TMP5 $$.TMP6  
+
+
+#produce predictions form parser_res.conll.ext
+cat $PARSER_RES_FILE  | awk '{if ($0 == "")  printf "\n";  else  printf "%d\t%s\t_\t_\n", $17, $18}' \
+    > $$.$PARSER_RES_FILE_SIMPLE.preds
+
+#produce arg structures from parser_res.conll.ext
+cat $PARSER_RES_FILE  |  awk \
+'{\
+    if ($0 == "")  \
+        printf "\n";\
+    else {\
+        printf "%s", $20; \
+        for (i = 22; i <= NF; i++) {  \
+            if ((i - 22) % 3 == 0 || (i - 22) % 3 == 1) \
+                printf "\t%s", $i;\
+        } \
+        printf "\n" \
+    }  \
+}' > $$.$PARSER_RES_FILE_SIMPLE.srl_preds
+
+
+# produce non deprojectivized conll format
+paste  $$.TEST_IN_FILE_SIMPLE.blind $$.$PARSER_RES_FILE_SIMPLE.preds | awk '{if ($0 ~ "^[[:space:]]$") printf "\n"; else printf "%s\n", $0 }' \
+    >  $PARSER_CONLL.proj
+
+#deprojectivize  
+mv $PARSER_CONLL.proj $PARSER_CONLL.proj.TMP
+perl -wln -e 's/^\s+$//; print;' $PARSER_CONLL.proj.TMP > $PARSER_CONLL.proj
+rm $PARSER_CONLL.proj.TMP
+echo "java -jar $SCRIPT_BASE_PATH/pseudoproj/proj2NonProj.jar  $PARSER_CONLL.proj $DEPS_FILE 1 conll UTF-8"
+java -jar $SCRIPT_BASE_PATH/pseudoproj/proj2NonProj.jar  $PARSER_CONLL.proj $DEPS_FILE 1 conll UTF-8
+cat deprojectivized.conll |  awk '{if ($0 == "")  printf "\n";  else  printf  "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", $1, $2, $3, $4, $5, $6, $7, $8}' > $PARSER_CONLL.no_srl
+
+#join with srl
+paste $PARSER_CONLL.no_srl $$.$PARSER_RES_FILE_SIMPLE.srl_preds | awk '{if ($0 ~ "^[[:space:]]$") printf "\n"; else printf "%s\n", $0 }' > $PARSER_CONLL
+
+mv $PARSER_CONLL $PARSER_CONLL.TMP
+perl -wln -e 's/^\s+$//; print;' $PARSER_CONLL.TMP > $PARSER_CONLL
+rm $PARSER_CONLL.TMP
+
+mv $PARSER_CONLL $PARSER_CONLL.TMP
+java PrepareOutputC08 $PARSER_CONLL.TMP $PARSER_CONLL
+rm $PARSER_CONLL.TMP
+
+echo "result saved in: $PARSER_CONLL"
+
+#rm -f  $$.$PARSER_RES_FILE_SIMPLE.preds $$.TEST_IN_FILE_SIMPLE.blind  $PARSER_CONLL.no_srl $$.$PARSER_RES_FILE_SIMPLE.srl_preds deprojectivized.conll
+
+#validate 
+#python $SCRIPT_BASE_PATH/validateFormat.py -t system $PARSER_CONLL
+#if [ ! $? -eq 0 ] 
+#then
+#    echo Failed format validation. Something is wrong...
+#else 
+#    echo Format validation succeeded.
+#fi
+
+
+echo Done

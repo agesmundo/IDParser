@@ -1,0 +1,192 @@
+# IDP FEATURE MODEL
+#
+# This is a base set of features in MALT Parser format (CONTEXT
+# is not supported) extended for SRL labeling task. Proposed by Nivre et al team at CoNLL-X shared task.
+# This file describes the set of features of the history to be connected to the
+# latent variable state vector at each parser decision.
+# Each line correspond to a feature. It defines which feature of which word
+# should be used. Word is defined in respect to the current state of the parser
+# (including the current partial dependency structure)
+#
+# Fields:
+#
+# --------
+# Field #1 - Tope of the step to which the feature is applied
+# (Note, word prediction operation is done at syntactic step)
+# --------
+# SRL_STEP NODE this feature applies only to SRL steps
+# SYNT_STEP this feature applies only to syntactic parsing steps
+# ANY_STEP this feature is applies to both step types
+# --------
+# Field #2 - type of the word feature:
+# --------
+#   LEX - word form
+#   LEMMA - word lemma
+#   CPOS - coarse part-of-speech tag
+#   POS -  fine grain part of speech 
+#   FEATS - word features (see sample.par INP_FEAT_MODE)
+#   DEP  - dependency label
+#   SENSE - predicate sense (senses within each bank, ProbBank/NomBank, are distinguished)
+# --------
+# Other fields describes where to find this word:
+# --------
+# Field #3 - structure
+# --------
+# Data structure where to look for the word:
+# STACK - syntactic stack
+# SRL_STACK - srl stack
+# INPUT - input sequence
+# --------
+# Field #4 - offset in the structure
+# --------
+# Relative position in the structure (nonnegative)
+# --------
+# Field #5 - offset in the sequence
+# --------
+# Relative position in the sentence (can be negative)
+# E.g. 
+# ANY_STEP LEX STACK 0 1 
+# means word that follow top of the stack in the sentence
+# --------
+# Field #6 - argument of the SRL structure  (`_` if no operation)
+# --------
+# Format is BANK:ARGUMENT_NAME
+# E.g.,
+# ANY STEP LEMMA STACK 0 0 0:A1
+# means lemma of the word which is A1 in bank 0 (usually ProbBank)
+# --------
+# Field #7 - number of transition to the head (nonnegative)
+# -------
+# E.g.
+# ANY_STEP LEX STACK 0 1 _ 1 
+# means the head of the word that follows current stack top in the sentence
+# --------
+# Field #8 - number of transitions to the rightmost child (if positive) or 
+# leftmost (if negative)
+# --------
+# ANY_STEP POS INPUT 0 0 _ 0 -1 
+# is POS tag of the leftmost child of the front of the queue
+# --------
+# Field #9 - number of transitions to the next right sibling (if positive) or 
+# next left siblings (if negative)
+# ANY_STEP LEMMA STACK 1 0 _  0 0 1 
+# is LEMMA of the next right sibling of the word which is currently under the 
+# top of the stack
+#
+# Note, you can omit zero (and _) elements at the end of the string, i.e. the following
+# to definitions are equivalent:
+# ANY_STEP LEX STACK 1 0 _ 0 0 0
+# LEX STACK 1
+#
+# More formal and better description of this format can be found at
+# Joakim Nivre's webpage:
+# http//w3.msi.vxu.se/~nivre/research/MaltParser.html
+# Below is the base feature set proposed by Nivre et al in
+# Nivre, J, Hall,J., Nilsson, J., Eryigit, G. and Marinov, S. (2006). Labeled 
+# Pseudo-Projective Data-Driven Dependency Parsing. In Proc. of 10th Conf. on 
+# Computational Natural Language Learning (CoNLL).
+
+
+# ===  SYNTACTIC PART
+SYNT_STEP NODE LEX STACK
+SYNT_STEP NODE LEX INPUT
+SYNT_STEP NODE LEX STACK 0 0 _ 1
+SYNT_STEP NODE LEMMA STACK
+SYNT_STEP NODE LEMMA INPUT
+SYNT_STEP NODE CPOS STACK
+SYNT_STEP NODE CPOS INPUT
+SYNT_STEP NODE POS	STACK
+SYNT_STEP NODE POS	INPUT
+SYNT_STEP NODE POS	STACK	1
+SYNT_STEP NODE FEATS STACK
+SYNT_STEP NODE FEATS INPUT
+SYNT_STEP NODE DEP STACK
+SYNT_STEP NODE DEP STACK 0 0 _ 0 -1 
+SYNT_STEP NODE DEP STACK 0 0 _ 0 1
+SYNT_STEP NODE DEP INPUT 0 0 _ 0 -1
+
+# ===  SRL PART
+SRL_STEP PATH DIR_SYNT_LAB SRL_STACK 0 0 _ 0 0 0 INPUT
+# SRL_STEP PATH DIR_SYNT_LAB SRL_STACK 1 0 _ 0 0 0 INPUT
+
+#sense feature
+SRL_STEP NODE SENSE SRL_STACK
+SRL_STEP NODE SENSE INPUT
+SRL_STEP NODE SENSE SRL_STACK 1
+
+#group 1
+# lex, lemma, pos and dep of the candidate on top and top-1 of the stack
+SRL_STEP NODE LEX SRL_STACK
+SRL_STEP NODE LEMMA SRL_STACK
+SRL_STEP NODE POS SRL_STACK
+SRL_STEP NODE DEP SRL_STACK
+SRL_STEP NODE LEX SRL_STACK 1
+SRL_STEP NODE LEMMA SRL_STACK 1
+SRL_STEP NODE POS SRL_STACK 1
+SRL_STEP NODE DEP SRL_STACK 1
+
+#group 2
+# lex, lemma, pos and dep of the candidate at the front of the queue
+SRL_STEP NODE LEX INPUT
+SRL_STEP NODE LEMMA INPUT
+SRL_STEP NODE POS INPUT
+SRL_STEP NODE DEP INPUT
+
+#group 3
+# pos, lemma and dep of the governor of the candidate on top
+SRL_STEP NODE POS SRL_STACK 0 0 _ 1
+SRL_STEP NODE DEP SRL_STACK 0 0 _ 1
+SRL_STEP NODE LEMMA SRL_STACK 0 0 _ 1
+# pos, lemma and dep of the governor of the node on top-1 of the stack (added because of the flip operation)
+SRL_STEP NODE POS SRL_STACK 1 0 _ 1
+SRL_STEP NODE DEP SRL_STACK 1 0 _ 1
+SRL_STEP NODE LEMMA SRL_STACK 1 0 _ 1
+
+
+#group 4
+# pos, lemma and dep of the governor of the candidate at the front of the queue
+SRL_STEP NODE POS INPUT 0 0 _ 1
+SRL_STEP NODE DEP INPUT 0 0 _ 1
+SRL_STEP NODE LEMMA INPUT 0 0 _ 1
+
+#group 5
+# dep of the leftmost, rightmost children of the node on top, top-1 of the stack
+SRL_STEP NODE DEP SRL_STACK 0 0 _ 0 -1
+SRL_STEP NODE DEP SRL_STACK 0 0 _ 0 1
+SRL_STEP NODE DEP SRL_STACK 1 0 _ 0 -1
+SRL_STEP NODE DEP SRL_STACK 1 0 _ 0 1
+
+# group 6
+# dep of the leftmost dependent of the node at front of the queue
+SRL_STEP NODE DEP INPUT 0 0 _ 0 -1
+
+
+#group 7
+# pos, dep of the right and left sibling of the node on top of the stack
+SRL_STEP NODE POS SRL_STACK 0 0 _ 0 0 1 # right sibling 
+SRL_STEP NODE DEP SRL_STACK 0 0 _ 0 0 1
+SRL_STEP NODE POS SRL_STACK 0 0 _ 0 0 -1 # left sibling
+SRL_STEP NODE DEP SRL_STACK 0 0 _ 0 0 -1 
+
+#group 8
+# pos, dep of the right and left sibling of the node on top-1  of the stack (added because of the flip operation)
+SRL_STEP NODE POS SRL_STACK 1 0 _ 0 0 1 # right sibling 
+SRL_STEP NODE DEP SRL_STACK 1 0 _ 0 0 1
+SRL_STEP NODE POS SRL_STACK 1 0 _ 0 0 -1 # left sibling
+SRL_STEP NODE DEP SRL_STACK 1 0 _ 0 0 -1 
+
+#group 9
+# pos, dep of the right and left sibling of the node at the front of the queue
+SRL_STEP NODE POS INPUT 0 0 _ 0 0 1 # right sibling 
+SRL_STEP NODE DEP INPUT 0 0 _ 0 0 1
+SRL_STEP NODE POS INPUT 0 0 _ 0 0 -1 # left sibling
+SRL_STEP NODE DEP INPUT 0 0 _ 0 0 -1 
+
+#group 10
+# lemma, pos and dep of the srl dependents of the nodes on top, top-1 of the stack, and at front of the queue
+# srl discriminated between propbank(0) and nombank(1)
+# about 700 lemmatized features are defined this way
+# features are ordered by srl frequency 
+
+#REMOVED
+

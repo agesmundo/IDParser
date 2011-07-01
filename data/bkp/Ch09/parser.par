@@ -1,0 +1,126 @@
+# Sample configuration file for ISBN Dependency Parser (idp)
+#
+# Model name. Intermediate and final *wgt* *state files will be named 
+# with MODEL_NAME as a prefix
+MODEL_NAME model-Ch09
+
+# variational approximation to use
+# FF - feed-forward (neural network), fast 
+# MF - mean-field approximation, slower
+APPROX_TYPE FF
+
+# training file, created by  prepare_data script
+TRAIN_FILE data/Ch09/CoNLL2009-ST-Chinese-train.tf.ext
+
+# for training: validation file, crated by prepare_data script
+# for parsing with learned model: text to parse
+TEST_FILE data/Ch09/CoNLL2009-ST-Chinese-development.tf.ext
+
+# for training: file to save intermediate parsing results
+# for testing: file to save parsing results
+OUT_FILE data/Ch09/interm.res
+
+# input output specification file created by prepare_data script
+IO_SPEC_FILE data/Ch09/io_spec
+
+# this parameter describes how to threat composed features:
+# 0 - treat composed feature as an atomic value. Learn parameters
+#     for each observed combination of features
+# 1 - treat composed feature as a set of elementary features. Learn
+#     parameters for each elementary feature
+# 2 - do both
+INP_FEAT_MODE 1
+
+# feature specification file name, see sample/parser.ih for example and
+# format description
+IH_LINK_SPEC_FILE data/Ch09/parser.ih
+# specification of interconnections between latent variable vectors,
+# see sample/parser.hh for example and format description
+HH_LINK_SPEC_FILE data/Ch09/parser.hh
+
+# this parameter describes when to predict the next word in our  generative model
+# our IWPT paper (see README) describes this point
+# 1 - means predict word when it first appears on in front of queue
+# 0 - means predict word when it first appears in stack
+# Other values are possible, but  1 is strongly recommended
+INPUT_OFFSET 1
+
+#Parsing mode, loosely corresponds to -o flag of MALTParser, 
+#Mode of Nivre's algorithm:
+# mode 2:  always shift before reduce and allow reduction of unattached tokens 
+#         (HEAD=0, DEPREL = ROOTLABEL)
+# mode 3:  2 + allow roots to be labeled with DEPREL != ROOTLABEL by RA-operation
+# mode 4:  the same as 3, but allows reduction from stack of any elements with HEAD=0
+# Modes 2 or 4 are recommended
+# If you selected to constrained mode you will get the following error
+# during training:
+#          Problem: wrong parsing order or in input file (e.g. NON-PROJECTIVITY): 
+#          can't make a action. 
+PARSING_MODE 2
+SRL_EARLY_REDUCE 0
+SYNT_EARLY_REDUCE 0
+
+# Internal deprojetivization of the semantic structure
+SRL_DEPROJECTIVIZATION  1
+SYNT_DEPROJECTIVIZATION 0
+
+# Branching factor during training. See section 5 "Searching for the Best Tree"
+# of our IWPT paper for details. 5 was enough in our all experiments.
+# You might consider using smaller number during training.
+SEARCH_BR_FACTOR 3
+# Size of the search beam
+# You might consider small beams (5,10) during training
+# but larger beams might sometimes useful if you want to get best possible
+# performance and sacrifice speed. 
+# Smaller than 100, or change MAX_BEAM_SIZE in isbn.h and rebuild the parser
+BEAM 5
+
+# Random seed. Change if want to generate a different model
+SEED 1
+
+# Initialization range for weights [-RAND_RANGE,+RAND_RANGE]
+RAND_RANGE 5.e-2
+# Initialization range for emission weights [-EM_RAND_RANGE,+EM_RAND_RANGE]
+EM_RAND_RANGE 5.e-4
+
+# Size of the hidden layer. 
+# Use small for small vocabularies and small treebanks, larger otherwise
+# Make sure that HID_SIZE is smaller than MAX_HID_SIZE in isbn.h
+HID_SIZE 80
+
+# Initial learning rate
+INIT_ETA 0.005
+# Learning rate is multiplied by that coefficient if accuracy 
+# if either training error went up, or validation accuracy 
+# went down
+ETA_RED_RATE  0.3
+# maximum reduction
+MAX_ETA_RED 1.0e-05
+
+# Initial regularization
+# decay = 1 - reg * learning_rate
+INIT_REG 0.08
+# Regularization is multiplied by this coefficient
+# if validation accuracy goes down
+REG_RED_RATE 0.5
+# Maximal reduction
+MAX_REG_RED 1.e-05
+
+# moment
+MOM 0.99
+
+# maximum number of iterations
+MAX_LOOPS 100
+
+# if after MAX_LOOPS_WO_ACCUR_IMPR 
+# the best accuracy on the validation set is not improved
+# training stops
+MAX_LOOPS_WO_ACCUR_IMPR 10
+
+# Validation is performed every after every LOOPS_BETWEEN_VAL iterations
+# of training
+LOOPS_BETWEEN_VAL 1
+
+# if we should use the same biases for SRL and syntactic operations
+DISTINGUISH_SRL_AND_SYNT_BIAS 1
+

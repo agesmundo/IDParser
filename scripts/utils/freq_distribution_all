@@ -1,0 +1,60 @@
+#!/bin/bash 
+
+if [ -z "$2" ]; then
+	echo "Usage: $0 <project_folder> <column> [language_ID]"
+	exit 
+fi
+
+echo "cd $1"
+cd $1
+PROJECT_FOLDER=$(pwd)
+
+. $PROJECT_FOLDER/scripts/conll2009/globals "$PROJECT_FOLDER"
+. $SCRIPT_FOLDER_2009/utils
+
+COLUMN=$2 #pred = 14
+
+OUT_FOLDER="predicateDistribution"
+
+FROM_ID=0;
+TO_ID=${#TRAIN_FILES[@]}
+
+if [ -n "$3" ]; then
+	LANGUAGE_ID=$3
+	FROM_ID=$3
+	TO_ID=$3
+	let FROM_ID=FROM_ID-1
+fi
+
+COUNTER=$FROM_ID
+while [ $COUNTER -lt  $TO_ID ]; do
+	
+	echo "cd $RESULTS_FOLDER/"
+	cd $RESULTS_FOLDER
+
+	if [ ! -d "${LANGUAGE_NAMES[$COUNTER]}" ]; then
+		echo "mkdir ${LANGUAGE_NAMES[$COUNTER]}"
+		mkdir "${LANGUAGE_NAMES[$COUNTER]}"
+	fi
+	echo "cd ${LANGUAGE_NAMES[$COUNTER]}"
+	cd ${LANGUAGE_NAMES[$COUNTER]}
+
+	if [ ! -d "$OUT_FOLDER" ]; then
+		echo "mkdir $OUT_FOLDER"
+		mkdir $OUT_FOLDER
+
+		echo "cd $OUT_FOLDER"
+		cd $OUT_FOLDER
+	else
+		echo "cd $OUT_FOLDER"
+		cd $OUT_FOLDER
+		
+		echo "rm *"
+		rm *
+	fi
+
+	echo "${SCRIPT_FOLDER_2009}/freq_distribution ${TRAIN_FILES[$COUNTER]} $COLUMN ${TITLES[$COUNTER]} ${TITLES[$COUNTER]}"
+	${SCRIPT_FOLDER_2009}/freq_distribution ${TRAIN_FILES[$COUNTER]} $COLUMN ${TITLES[$COUNTER]} ${TITLES[$COUNTER]}
+
+    let COUNTER=COUNTER+1 
+done

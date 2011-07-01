@@ -1,0 +1,76 @@
+ISBN dependency parser (idp) - Incremental Sigmoid Belief Network Dependency Parser
+============================
+
+Installation Instructions
+=========================
+
+The parser was developed for Linux and was not tested on any other platform.
+
+DEPENDENCIES
+
+The parser requires:
+
+-  GNU Scientific Library (GSL)
+
+http://www.gnu.org/software/gsl/
+Download  and install.  If on execution of the parser 
+(idp) you still get:  "cannot open shared object file *gsl*so.", 
+make sure that LD_LIBRARY_PATH is defined and points to the location of GSL 
+dynamic library. E.g., if you are using bash you might need to add to ~/.bashrc
+the following lines:
+
+LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH
+
+If you installed GSL library not in a default path you will need to edit your 
+~/.bashrc accordingly and also edit 
+Makefile of ISBN dependency parser. Add to CFLAGS -I<GSL_PATH>/include and to LDFLAGS
+-L<GSL_PATH>/lib.
+
+
+- Implementation of (Nivre and Nilsson, 2005) pseudo-projective  transformations, 
+which allows to  cast  non-projective projective parsing tasks as projective. 
+If you consider projective treebanks or use a different projectivization method 
+you should be able to change the scripts accordingly.
+A version of this software is supplied within idp and it is used by
+preprocessing scripts.
+
+- Java (JRE at least 1.5.x is recommended)
+
+Both pseudo-projective transformations software and a preprocessing module for
+idp are java applications.
+
+
+- Perl, version at least 5.8.1
+
+This is required to run evaluation scripts and for conversion between UTF-8 and
+ASCII.
+
+- Python
+
+For format validation (validateFormat.py)
+
+INSTALLATION
+
+Unpack the code in any directory.
+It has the following structure:
+
+parser/src    Main parser code
+scripts/   Pre- and postprocessing scripts (see README), eval07.pl 
+    (CoNLL-2007 official eval07.pl script)
+scripts/pseudoproj  Pseudo-Projective  transformations software
+scripts/preprocessor Conversion of CoNLL format to the format accepted by the parser
+sampe/   Sample configuration files
+
+Change directory to parser/src/ and type
+
+make
+
+idp is the main executable and it is created in the parser/ directory.
+As described in README you might need to change some constants defined
+in definition file isbn.h depending on properties of your treebank and rebuild the parser:
+
+make clean all
+
+See README for instructions.
+

@@ -1,0 +1,275 @@
+
+1. Required data
+=========================
+
+You should provide a split of the training data on an actual training set
+and a small validation set. The validation set will be used for early stopping
+and automatic parameter adjustment during training. We recommend it to be at 
+least 2,000 tokens or larger. You might also consider using it for tuning model
+parameters. 
+ 
+
+2. Preparing data
+=========================
+
+Before applying the parser you need to prepare the data. To prepare the data use
+the script prepare_data provided in scripts/ directory
+
+Usage: ./prepare_data  FREQ_CUTOFF UNKN_FREQ_CUTOFF  PROJECT_PATH  TRAINING_FILE \
+ VALIDATION_FILE [other_files]*
+Parameters:
+  - FREQ_CUTOFF
+    any feature (both atomic and composed), word form or word lemma which is
+    encountered less than FREQ_CUTOFF is treated as a special 'UNKNOWN' item.
+  - UNKN_FREQ_CUTOFF
+    if frequency of an 'UNKNOWN' item in the training set is less than
+    UNKN_FREQ_CUTOFF then it is merged with less frequent item of the same
+    category. UNKN_FREQ_CUTOFF should be less or equal to FREQ_CUTOFF.
+  - PROJECT_PATH
+    output files are created here.  The directory should already exist.
+  - TRAINING_FILE 
+    training file in modified CoNLL-08 format (see my email for the format description),
+    vocabulary/set of features/pos tags/etc are induced from it. This format will called
+    mCoNLL-08
+  - VALIDATION_FILE 
+    validation file in mCoNLL-08 format. Both TRAINING_FILE and VALIDATION_FILE are 
+    required to contain gold standard dependency trees.
+  - other_files 
+    other files (if any) to be converted in mCoNLL-08.EXT format. They can be either
+    blind or with dependency structure. Even if you have gold standard files we 
+    recommend providing blind files to the idp.
+
+We recommend to use both thresholds of nor less than 5, or even 20 or higher.
+Usually smaller values significantly increase vocabulary size (and, thus, 
+parsing speed) without improvement in parsing accuracy.
+
+This script:
+- encodes UTF-8 in ASCII
+- performs pseudo-projective transformation
+- produces files with numerical values to be used by the parser 
+  (we call it mCoNLL-08.EXT format)
+
+IMPORTANT: Do not remove any created files from the PROJECT_PATH 
+
+Possible problems and solutions:
+a. If you get message like:
+
+    `Processing file 'proj/dev.conll.utf_prj' and writing results to 'proj/dev.conll.ext'...
+    Exception in thread "main" java.lang.Exception: Unknown POS 'DR''
+    
+It means that one of the input files (in this case dev.conll) contains a POS 
+tag which does not exist in the training file (TRAINING_FILE). If this problem 
+occurs with the validation set, you might consider changing split on training 
+and validation set and rerunning the scripts. If this happened with an actual 
+data you're going to apply your parser to (or final testing set), it indicates a
+problem with data. Note, that it never happened with testing set of CoNLL-2007 
+task (though happens on a language in CoNLL-X task dataset). If it happened to 
+you, you will have to preprocess the final testing set replacing these 
+tags.  The same applies to CPOS and atomic features of the words. 
+
+b. You might get warnings about composed features appearing in the development or 
+testing files but never appearing in training set. Ignore these warnings, or change
+splits. 
+
+Warning "Don't trust accuracy reported by idp on this file anymore", 
+happens when a dependency label introduced by projectivization in a testing or
+validation file has never appeared in the training file. In this case it is 
+replaced with a simplified label and idp will show accuracies in 
+respect to using this simplified label as gold standard. However if you measure
+your accuracy as described below, this problem will never affect your results. 
+For the testing files (not validation files!) we recommend that you produce 
+mCoNLL-08.EXT format for blind files only and avoid this problem. 
+
+c.  You might get warnings about new predicate senses appearing in the validation files,
+ ignore this warning. However, accuracy figures given internally will not take into account
+this predicates (they do not present in mCoNLL-08.EXT files)
+
+d. You might reports about roles appearing in validation data, but not in training. Change split, or 
+manually remove this roles from validation file. This situation should not happen with sufficient amount
+of training data (and if bank field is set correctly everywhere).
+
+e. Make sure that a first line in your data files is not empty. This line is 
+used to decide by scripts whether files include dependency labels or not. 
+E.g. projectivization won't run on files with empty first line. Otherwise you
+will get an error from the projectivization software or parser.
+
+3. Configuring the parser
+=========================
+ 
+a. Ensure that sizes of data structures match the treebank parameters
+
+You might consider skipping this step and returning to it only if you have a 
+problem with starting a parser (namely, warning that some MAX* does not match
+parameters of the data) or if your parser runs out of memory during parsing.
+
+The parser uses some fixed size data structures. You need to make sure that the
+amount of memory it allocates corresponds to treebank parameters. 
+To do it you can:
+- either copy <project_directory>/idp_io_spec.h to parser/idp_io_spec.h
+  and rebuild the parser:
+  
+  make clean all
+
+- or compare <project_directory>/idp_io_spec.h  with parser/idp_io_spec.h 
+and make sure that all the parameters in proj/idp_io_spec.h are not larger than
+corresponding parameters in parser/idp_io_spec.h. If not, increase these 
+parameters in parser/idp_io_spec.h and rebuild the parser. This option is
+convenient if you plan to apply the same parser to different treebanks (or the
+same treebank but with different cutoff values).
+
+If you have particularly long sentences or long words you will need to update
+MAX_SENT_LEN (default 400) or MAX_REC_LEN (default 100) fields in idp_io_spec.h. 
+
+b. Create configuration files for the parser
+
+Sample configuration files are available in directory sample/:
+sample/parser.par  main configuration file
+sample/parser.ih   input features of the parser, format is similar to the format 
+                   used in features models of MALTParser of Nivre et al.
+sample/parser.hh   interconnections between latent state vectors
+
+Format description is inside inside these files. You can copy these files
+in your project directory.
+At least you will need to change the following parameters in parser.par:
+
+- TRAIN_FILE should point to the training set file created by prepare_data 
+script. It has extension .ext and it is placed by the script (prepare_data
+or conll2ext) in the project directory.
+
+- TEST_FILE during training should point to the validation set file created by
+prepare_data script. It also has extension .ext and placed in the project 
+directory. During actual use of the parser TEST_FILE should point to the target 
+text as explained later.
+
+3. Start training
+=========================
+ 
+To start training from the project directory type:
+
+<idp_path>/idp -train parser.par 
+
+Current status of the parser is saved in *.prog file. After each training and a 
+validation iteration the parser saves its status and weights in  *state and 
+*wgt* files. If the parser is interrupted it will resume from this point. The 
+following output will indicate that:
+
+"Resuming training  with the following parameters..."
+
+If you want to start training from the beginning - remove *state and *wgt* files. 
+When the training is finished resulting weights will be saved in 
+MODEL_NAME.best.wgt file, where MODEL_NAME is as indicated in the configuration
+file.
+
+After each validation, validation accuracy is reported. Validation accuracy
+is computed internally without deprojectivization and, thus, differs from the 
+true score. MODEL_NAME.state also stores the last and the best achieved
+validation scores. 
+
+Possible problems:
+a. Possibly but very unlikely you can get too many links connected to the 
+considered state if FEAT_MODE 1 or 2 is set in parser.par.  It might happen 
+if your treebank  (tagger/morph. analyzer output) has exceedingly  many distinct 
+features for each  word and you defined many features of type FEATS in *ih file.
+See a sample parser.ih for description of how to avoid this problem.
+b. You might get warnings about non projectivity.  Fix the data or try adjusting PARSING_MODE 
+(increase). PARSING_MODE effect only syntactic parsing
+
+==================================================================
+Applying the parser to data 
+==================================================================
+
+1. Converting data from mCoNLL-08 to mCoNLL-08.EXT format
+=========================
+
+You had an opportunity to convert all your data to mCoNLL-08.EXT format when
+creating the project (as additional parameters of scripts/prepare_data 
+script). If you did not do that, you can convert it at any point:
+
+scripts/conll2ext  PROJECT_PATH  TRAINING_FILE.conll FILE_TO_CONVERT.conll
+Parameters:
+- PROJECT_PATH
+    project path used for this parsing project, output file will also be created here.
+- TRAINING_FILE.conll
+    (IMPORTANT!) the same training file in mCoNLL-08 format as used for creation of the 
+    project (was supplied as a parameter to prepare_data script)
+- FILE_TO_CONVERT.conll
+    file (in mCoNLL-08 format) to be converted to mCoNLL-08.EXT format
+
+The script will produce FILE_TO_CONVERT.conll.ext in PROJECT_PATH.
+ 
+Problems:
+
+scripts/conll2ext uses ./prepare_data script. So, the same problems as
+described in "Prepare data" section might happen.
+
+2. Parsing 
+=========================
+ 
+You can run the parser on you test file test.conll.ext with:
+
+<idp_path>/idp -parse parser.par TEST_FILE=test.conll.ext \
+      OUT_FILE=test_res.conll.ext
+
+where parser.par is you configuration file and OUT_FILE defines where to 
+put parser output in CoNLL.ext format. You can provide other parameters
+to the parser in the command line (they override parameters given in *par).
+E.g. you might consider increasing search beam:
+
+<idp_path>/idp -parse parser.par TEST_FILE=test.conll.ext \
+      OUT_FILE=test_res.conll.ext BEAM=50
+
+Alternatively, you can set testing configuration in a separate configuration
+file, e.g parser_test.par:
+
+<idp_path>/idp -parse parser_test.par 
+
+The parser will report parsing accuracy (if test.conll.ext included gold 
+standard dependencies and relation labels). This score is computed internally
+and without deprojectivization. If applied to blind file it will report testing 
+accuracy of 0.00%. Don't worry, just convert output and evaluate as explained
+in the next section.
+
+
+3. Converting results to CoNLL format and evaluation
+=========================
+
+a. Conversion 
+
+To convert the parser output you should use the script scripts/ext_to_conll
+
+<idp_path>/scripts/ext2conll PROJECT_PATH test.conll  parser_res.conll.ext \
+     parser_res.conll
+
+-  PROJECT_PATH
+   path to the parsing project (the same as before!)
+-  test.conll 
+   Original test mCoNLL-08 file in utf-8 (as before processing with ./prepare_data or 
+   ./convert_to_conll_ext) - blind or with gold standard dependency/srl structure
+-  parser_res.conll.ext 
+   Parser output on this file in mCoNLL-08.ext format
+-  parser_res.conll
+   Parser output converted to mCoNLL-08 format and deprojectivized will be produced 
+   by the script.    Additionally parser_res.conll.proj will contain the parser 
+   output in CoNLL format echo but without deprojectivization.
+
+
+#This script uses Python module validateFormat.py developed by CoNLL 2007 team 
+#to validate the output format  (not any more???)
+and Nivre et al projectivization software.
+
+b. Evaluation
+
+Use the standard eval08.pl (see its credits, license (?) and description at
+http://depparse.uvt.nl/depparse-wiki/SharedTaskWebsite )
+To get detailed evaluation results run:
+
+<idp_path>/scripts/eval08.pl -g gold_std.conll -s parser_res.conll 
+
+gold_std.conll   
+    gold standard for the testing set
+parser_res.conll
+    parsing results produced by the parser converted to CoNLL format (see 
+    previous step)
+
+
+

@@ -1,0 +1,45 @@
+#!/bin/bash 
+
+if [ -z "$3" ]; then
+	echo "Usage: $0 <project_folder> <source_file_name> <out_file_name>"
+	exit 1
+fi
+
+cd $1
+PROJECT_FOLDER=$(pwd)
+SOURCE_FILE_NAME=$2
+OUT_FILE_NAME=$3
+TMP="${OUT_FILE_NAME}TMP"
+TMP2="${OUT_FILE_NAME}TMP2"
+TMP3="${OUT_FILE_NAME}TMP3"
+TMP4="${OUT_FILE_NAME}TMP4"
+TMP5="${OUT_FILE_NAME}TMP5"
+TMP6="${OUT_FILE_NAME}TMP6"
+
+echo "$PROJECT_FOLDER/scripts/conll2009/conll09_to_conll08.pl $SOURCE_FILE_NAME $TMP"
+cd $PROJECT_FOLDER/scripts/conll2009
+./conll09_to_conll08.pl $SOURCE_FILE_NAME $TMP
+
+echo "$PROJECT_FOLDER/scripts/conll2008/dumprolesets.pl $TMP $TMP2"
+cd $PROJECT_FOLDER/scripts/conll2008/
+./dumprolesets.pl $TMP $TMP2
+
+echo "$PROJECT_FOLDER/scripts/conll2008/conll_to_eaclf.pl $TMP $TMP2 >$TMP3"
+cd $PROJECT_FOLDER/scripts/conll2008/
+./conll_to_eaclf.pl $TMP $TMP2 >$TMP3
+
+cut -f1,2,3,4,5 $TMP3 >$TMP4
+
+cut -f8 $SOURCE_FILE_NAME >$TMP5
+
+cut -f7- $TMP3 >$TMP6
+
+paste $TMP4 $TMP5 $TMP6| sed 's/[\t][\t]$//g'>$OUT_FILE_NAME
+
+rm $TMP
+rm $TMP2
+rm $TMP3
+rm $TMP4
+rm $TMP5
+rm $TMP6
+

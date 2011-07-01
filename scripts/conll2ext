@@ -1,0 +1,60 @@
+#!/bin/bash
+
+if [ -z "$3" ]; then
+    echo
+    echo "Script for converting CoNLL files into CoNLL.EXT format"
+    echo "Usage: ./conll2ext  PROJECT_PATH  TRAINING_FILE.conll FILE_TO_CONVERT.conll"
+	echo "Parameters:"
+	echo "  - PROJECT_PATH"
+	echo "    project path used for this parsing project, output file will also be created here."
+    echo "  - TRAINING_FILE.conll"
+    echo "    (IMPORTANT!) the same training file in CoNLL format as used for creation of the"
+    echo "    project (as parameter  of prepare_data)"
+	echo "  - FILE_TO_CONVERT.conll" 
+	echo "    file (in CoNLL format) to be converted to CoNLL.EXT format"
+    echo 
+    exit 1
+fi
+
+PROJECT_PATH=$1
+SCRIPT_BASE_PATH=${0%/*}
+
+TRAIN_FILE_IDX=2
+TRAIN_FILE=$2
+
+TEST_FILE=$3
+SIMPLE_NAME=${TEST_FILE##*/}
+
+if [ -e $PROJECT_PATH/$SIMPLE_NAME.ext ] 
+then
+    echo "File $PROJECT_PATH/$SIMPLE_NAME.ext already exists"
+    exit 1
+fi
+
+mkdir $PROJECT_PATH/$$.tmp
+
+FREQ_CUTOFF=`head -n 1 $PROJECT_PATH/preproc.cfg | awk '{print  $1}'`
+UNKN_FREQ_CUTOFF=`head -n 1 $PROJECT_PATH/preproc.cfg | awk '{print  $2}'`
+
+$SCRIPT_BASE_PATH/prepare_data $FREQ_CUTOFF $UNKN_FREQ_CUTOFF $PROJECT_PATH/$$.tmp $TRAIN_FILE $TEST_FILE
+
+#make sure that specification files are the same 
+cat $PROJECT_PATH/io_spec | grep -v spec_file | grep -v h_file | grep -v train_file | grep -v test_files >  $PROJECT_PATH/$$.tmp/orig_spec_stripped
+cat $PROJECT_PATH/$$.tmp/io_spec  | grep -v spec_file | grep -v h_file | grep -v train_file | grep -v test_files >  $PROJECT_PATH/$$.tmp/new_spec_stripped
+
+diff $PROJECT_PATH/$$.tmp/orig_spec_stripped $PROJECT_PATH/$$.tmp/new_spec_stripped   > /dev/null
+
+
+if [ ! $? -eq 0 ]
+then
+    echo " Error: Obtained differen input-output specification"
+    echo " $TRAIN_FILE is probably different from the original one, check and run again"
+#    rm -Rf $PROJECT_PATH/$$.tmp
+    exit 2
+fi
+
+mv $PROJECT_PATH/$$.tmp/$SIMPLE_NAME.ext $PROJECT_PATH/$SIMPLE_NAME.ext 
+rm -Rf $PROJECT_PATH/$$.tmp
+
+echo "Output is in $PROJECT_PATH/$SIMPLE_NAME.ext"
+

@@ -1,0 +1,37 @@
+here is how to compute the figures you required:
+
+//these files are in scripts/conll2008
+-- store the file CoNLL.pm in a directory
+-- store the files evalb_cr.pl and treerf.pl in the same directory
+-- change the line
+
+  use lib "/home/gam/tmp/sharedtask";
+
+  into
+    use lib "<the dir where you stored CoNLL.pm>";
+
+-- to get the crossing arcs performance, run
+
+./evalb_cr.pl <GOLD in CoNLL 2008 format> <OUT in CoNLL 2008 format> > <EVALB resulting file>
+
+<EVALB resulting file> details for each sentence the results. You can ignore it. The figures you need will be printed on stderr and look like this:
+
+794 1279 2697
+P  62.08 R  29.44 F  39.94
+2824 CoNLL records done
+
+This is the result we got last year on the test set. For this year, i guess you will be using the devel set.
+
+-- to get the number of semantic graphs that are trees, run on the training data set
+
+./treerf.pl <GOLD TRAIN in CoNLL 2008 format>
+
+and you should get some output like this one:
+
+39279 CoNLL records done
+8402 CoNLL trees
+21.39%
+
+-- it turns out that james computed the % of sentences that contains syntactic crossing arcs and the % of sentences containing semantic crossing arcs. as far as i remember these figures were simply computed on the derivations and a sentence contains a crossing arc iff a swap operation was triggered.
+
+if that doesnt work, i'll look into it this weekend. Since i have been able to reproduce all the results we cited last year, that should work as is ... assuming the data are in our beloved conll 2008 format.

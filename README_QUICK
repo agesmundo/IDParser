@@ -45,7 +45,7 @@ data/bkp/En09/CoNLL2009-ST-English-train
 data/bkp/En09/CoNLL2009-ST-English-development
 data/bkp/En09/CoNLL2009-ST-English-test
 3) cd to IDParser folder and launch training with 
-./script/conll09/train_all 4
+./scripts/conll2009/train_all 4
     (Usage: ./train_all <language_code>)
 where the language codes are 
 1 Catalan
@@ -57,5 +57,5 @@ where the language codes are
 7 Spanish
 4) finished the training launch the parsing with
 ./scripts/conll2009/parse_all 4
-      (./scripts/conll2009/parse_all <language_ID>)
+      (Usage: ./parse_all <language_ID>)
 5) the result will be saved in data/En09 with the extension .pars3

@@ -56,6 +56,6 @@ where the language codes are
 6 Japanese
 7 Spanish
 4) finished the training launch the parsing with
-./script/conll09/parse_all 4
-      (./parse_all <language_ID>)
+./scripts/conll2009/parse_all 4
+      (./scripts/conll2009/parse_all <language_ID>)
 5) the result will be saved in data/En09 with the extension .pars3
